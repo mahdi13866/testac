@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تشخیص چهره و نیت</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <style>
+    body { font-family: Tahoma; text-align: center; margin-top: 30px; }
+    video { border: 2px solid red; border-radius: 10px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>ورود با چهره</h2>
+  <video id="video" width="320" height="240" autoplay muted></video>
+  <p id="status">در حال بارگزاری مدل‌ها...</p>
+  <script>
+    const video = document.getElementById('video');
+
+    Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri('./models'),
+      faceapi.nets.faceLandmark68Net.loadFromUri('./models'),
+      faceapi.nets.faceRecognitionNet.loadFromUri('./models')
+    ]).then(startVideo);
+
+    function startVideo() {
+      navigator.mediaDevices.getUserMedia({ video: {} })
+        .then(stream => {
+          video.srcObject = stream;
+          document.getElementById('status').innerText = 'در حال تشخیص چهره...';
+        })
+        .catch(err => console.error("خطا در دسترسی به دوربین", err));
+    }
+
+    video.addEventListener('play', async () => {
+      const canvas = faceapi.createCanvasFromMedia(video);
+      document.body.append(canvas);
+      const displaySize = { width: video.width, height: video.height };
+      faceapi.matchDimensions(canvas, displaySize);
+
+      const interval = setInterval(async () => {
+        const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks().withFaceDescriptors();
+        const resized = faceapi.resizeResults(detections, displaySize);
+        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        faceapi.draw.drawDetections(canvas, resized);
+
+        if (detections.length > 0) {
+          document.getElementById('status').innerText = 'چهره شناسایی شد! محاسبه عدد نیت...';
+          clearInterval(interval);
+          // مرحله بعدی مثل انتقال یا محاسبه نیت را اینجا اضافه کن
+        }
+      }, 1000);
+    });
+  </script>
+</body>
+</html>
