@@ -1,1 +1,100 @@
-// placeholder content for index.html
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>تشخیص چهره و نیت</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 20px;
+      background: #fdf6f9;
+    }
+    video {
+      border: 3px solid #f06292;
+      border-radius: 12px;
+      margin-top: 10px;
+    }
+    .result {
+      margin-top: 20px;
+      font-size: 20px;
+      color: #880e4f;
+    }
+    .heart {
+      font-size: 24px;
+      color: red;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <h1>تشخیص چهره و محاسبه نیت</h1>
+  <video id="video" width="320" height="240" autoplay muted></video>
+  <div class="result" id="result"></div>
+  <div class="heart">زهره و مهدی</div>
+
+  <script defer src="face-api.min.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const resultDiv = document.getElementById('result');
+
+    async function start() {
+      await faceapi.nets.tinyFaceDetector.loadFromUri('/');
+      await faceapi.nets.faceRecognitionNet.loadFromUri('/');
+      await faceapi.nets.faceLandmark68Net.loadFromUri('/');
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+        video.srcObject = stream;
+      } catch (err) {
+        alert("اجازه دسترسی به دوربین داده نشد.");
+        return;
+      }
+
+      video.addEventListener('play', async () => {
+        const canvas = faceapi.createCanvasFromMedia(video);
+        document.body.append(canvas);
+        const displaySize = { width: video.width, height: video.height };
+        faceapi.matchDimensions(canvas, displaySize);
+
+        const labeledDescriptors = await loadLabeledImages();
+
+        const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+
+        const interval = setInterval(async () => {
+          const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
+          const resizedDetections = faceapi.resizeResults(detections, displaySize);
+          canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+          faceapi.draw.drawDetections(canvas, resizedDetections);
+
+          const results = resizedDetections.map(d =>
+            faceMatcher.findBestMatch(d.descriptor)
+          );
+
+          for (let i = 0; i < results.length; i++) {
+            if (results[i].label === 'me') {
+              clearInterval(interval);
+              resultDiv.textContent = 'چهره تأیید شد. نیت شما: ' + Math.floor(Math.random() * 100);
+            }
+          }
+        }, 1000);
+      });
+    }
+
+    function loadLabeledImages() {
+      const labels = ['me'];
+      return Promise.all(
+        labels.map(async label => {
+          const imgUrl = `${label}.jpg`;
+          const img = await faceapi.fetchImage(imgUrl);
+          const detections = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+          return new faceapi.LabeledFaceDescriptors(label, [detections.descriptor]);
+        })
+      );
+    }
+
+    start();
+  </script>
+</body>
+</html>
