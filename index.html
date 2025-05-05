@@ -1,0 +1,112 @@
+
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8" />
+  <title>محاسبه نیت با چهره</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <style>
+    body {
+      font-family: Tahoma, sans-serif;
+      text-align: center;
+      background-color: #f0f0f5;
+      padding: 20px;
+    }
+    video {
+      border: 2px solid #555;
+      border-radius: 12px;
+      margin-bottom: 15px;
+    }
+    form {
+      display: none;
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      max-width: 300px;
+      margin: auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+    input {
+      margin-bottom: 10px;
+      padding: 8px;
+      width: 90%;
+    }
+    button {
+      padding: 8px 16px;
+      border: none;
+      background-color: #008CBA;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .datetime {
+      margin-bottom: 15px;
+      font-size: 14px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h2>تشخیص چهره و نیت</h2>
+  <video id="video" width="320" height="240" autoplay muted></video>
+  <div class="datetime">
+    <span id="currentDate"></span> -
+    <span id="currentTime"></span>
+  </div>
+  <form id="niyatForm">
+    <input type="text" placeholder="اسم شما" required>
+    <input type="text" placeholder="اسم مادر شما" required>
+    <input type="text" placeholder="تاریخ تولد (مثلاً ۱۳۸۶/۱۰/۱۷)" required>
+    <input type="number" placeholder="عدد نیت شما" required>
+    <button type="submit">محاسبه</button>
+  </form>
+
+  <script>
+    const video = document.getElementById('video');
+    const form = document.getElementById('niyatForm');
+
+    async function setupCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+      } catch (err) {
+        alert('اجازه دسترسی به دوربین داده نشد!');
+      }
+    }
+
+    function updateDateTime() {
+      const now = new Date();
+      const date = now.toLocaleDateString('fa-IR');
+      const time = now.toLocaleTimeString('fa-IR');
+      document.getElementById('currentDate').textContent = `تاریخ: ${date}`;
+      document.getElementById('currentTime').textContent = `ساعت: ${time}`;
+    }
+
+    setInterval(updateDateTime, 1000);
+
+    Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+      faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+    ]).then(startVideo);
+
+    function startVideo() {
+      setupCamera();
+      video.addEventListener('play', () => {
+        const canvas = faceapi.createCanvasFromMedia(video);
+        document.body.append(canvas);
+        const displaySize = { width: video.width, height: video.height };
+        faceapi.matchDimensions(canvas, displaySize);
+
+        const interval = setInterval(async () => {
+          const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+          if (detections.length > 0) {
+            clearInterval(interval);
+            form.style.display = 'block';
+            canvas.remove();
+          }
+        }, 500);
+      });
+    }
+  </script>
+</body>
+</html>
