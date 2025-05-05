@@ -1,23 +1,42 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>تشخیص چهره و عدد نیت</title>
-  <style>
-    body { font-family: sans-serif; text-align: center; padding: 20px; }
-    video, canvas { border: 1px solid #ccc; margin: 10px; }
-  </style>
+  <meta charset="UTF-8">
+  <title>تشخیص چهره</title>
 </head>
 <body>
-  <h2>تشخیص چهره و محاسبه عدد نیت</h2>
+  <h2>تشخیص چهره</h2>
   <video id="video" width="320" height="240" autoplay muted></video>
-  <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
   <p id="status">در حال بارگذاری مدل‌ها...</p>
-  <button onclick="saveFace()">ذخیره چهره من</button>
-  <p id="result"></p>
-  <script src="face-api.min.js"></script>
-  <script src="script.js"></script>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const statusText = document.getElementById('status');
+
+    async function startVideo() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+      } catch (err) {
+        statusText.textContent = "خطا در دسترسی به دوربین: " + err.message;
+      }
+    }
+
+    async function loadModels() {
+      try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri('.');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('.');
+        await faceapi.nets.faceRecognitionNet.loadFromUri('.');
+        await faceapi.nets.ssdMobilenetv1.loadFromUri('.');
+        statusText.textContent = "مدل‌ها بارگذاری شدند. در حال تشخیص چهره...";
+        startVideo();
+      } catch (err) {
+        statusText.textContent = "خطا در بارگذاری مدل‌ها: " + err.message;
+      }
+    }
+
+    loadModels();
+  </script>
 </body>
 </html>
